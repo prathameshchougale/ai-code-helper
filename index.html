@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Helper</title>
+    <style>
+        /* --- Basic Styles & Font --- */
+        :root {
+            --primary-color: #db2777;
+            --secondary-color: #4f46e5;
+            --user-msg-bg: #4f46e5;
+            --bot-msg-bg: #f3f4f6;
+            --bg-color: #ffffff;
+            --text-color: #111827;
+            --bot-text-color: #1f2937;
+            --container-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --code-bg: #1e293b;
+        }
+
+        body {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #e5e7eb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        /* --- Chat Container --- */
+        .chat-container {
+            width: 100%;
+            max-width: 800px;
+            height: 90vh;
+            max-height: 850px;
+            background-color: var(--bg-color);
+            border-radius: 1rem;
+            box-shadow: var(--container-shadow);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Chat Header --- */
+        .chat-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .chat-header h2 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* --- Chat Window (Message Display) --- */
+        .chat-window {
+            flex-grow: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* --- Individual Messages --- */
+        .message {
+            max-width: 95%;
+            padding: 0.75rem 1.25rem;
+            border-radius: 1.25rem;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background-color: var(--user-msg-bg);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 0.5rem;
+        }
+
+        .bot-message {
+            background-color: var(--bot-msg-bg);
+            color: var(--bot-text-color);
+            align-self: flex-start;
+            border-bottom-left-radius: 0.5rem;
+        }
+        
+        /* --- Code Block Styling --- */
+        .bot-message pre {
+            position: relative; /* Needed for positioning the copy button */
+            background-color: var(--code-bg);
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            margin-top: 0.75rem;
+        }
+        .bot-message code {
+            white-space: pre-wrap;
+        }
+        
+        /* --- NEW: Copy Button Styling --- */
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background-color: #475569;
+            color: #e2e8f0;
+            border: none;
+            padding: 0.3rem 0.6rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+            opacity: 0.7;
+            transition: opacity 0.2s, background-color 0.2s;
+        }
+        .copy-btn:hover {
+            opacity: 1;
+            background-color: #64748b;
+        }
+        
+        /* --- Explanation & Complexity Styling --- */
+        .structured-container .structured-line {
+            margin-bottom: 0.8rem;
+        }
+        .structured-container .structured-title {
+            display: block;
+            font-family: 'Courier New', Courier, monospace;
+            color: #374151;
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+        }
+        .structured-container .structured-text {
+            color: #4b5563;
+            padding-left: 0.5rem;
+            margin: 0;
+        }
+
+        /* --- Action Buttons under code --- */
+        .code-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        
+        .action-btn {
+            background-color: #64748b;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background-color 0.2s;
+        }
+        .action-btn:hover {
+            background-color: #475569;
+        }
+
+        /* Typing indicator styles */
+        .typing-indicator { display: flex; align-items: center; gap: 0.25rem; }
+        .typing-indicator span { height: 8px; width: 8px; background-color: #9ca3af; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+
+        /* --- Input Area --- */
+        .chat-input-area {
+            padding: 1rem;
+            border-top: 1px solid #e5e7eb;
+            background-color: #f9fafb;
+        }
+        
+        .input-wrapper {
+            display: flex;
+            align-items: flex-end;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            border: 1px solid #d1d5db;
+            border-radius: 24px;
+            padding: 0.75rem 1.25rem;
+            font-size: 1rem;
+            font-family: inherit;
+            line-height: 1.5;
+            max-height: 150px;
+            overflow-y: auto;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        #user-input:focus { border-color: var(--primary-color); }
+
+        #send-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            margin-left: 0.75rem;
+            cursor: pointer;
+            font-size: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s;
+            flex-shrink: 0;
+        }
+        #send-button:hover { background-color: #be185d; }
+        
+        /* --- Mode/Language Selectors --- */
+        .selectors {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
+        }
+        .selector-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            justify-content: center;
+        }
+        .selector-group label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .selector-group input {
+            margin-right: 0.3rem;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>AI Code Helper 💻</h2>
+        </div>
+        <div class="chat-window" id="chat-window">
+            <div class="message bot-message">
+                <p>Hello! Select a mode and language. I can generate, debug, and optimize code for you!</p>
+            </div>
+        </div>
+        <div class="chat-input-area">
+            <div class="selectors">
+                <div class="selector-group" id="mode-selector">
+                    <strong>Mode:</strong>
+                    <label><input type="radio" name="mode" value="generate" checked> Generate</label>
+                    <label><input type="radio" name="mode" value="debug"> Debug</label>
+                    <label><input type="radio" name="mode" value="optimize"> Optimize</label>
+                </div>
+                <div class="selector-group" id="language-selector">
+                    <strong>Language:</strong>
+                    <label><input type="radio" name="language" value="Python" checked> Python</label>
+                    <label><input type="radio" name="language" value="Java"> Java</label>
+                    <label><input type="radio" name="language" value="C"> C</label>
+                    <label><input type="radio" name="language" value="C++"> C++</label>
+                </div>
+            </div>
+            <div class="input-wrapper">
+                <textarea id="user-input" placeholder="Describe a problem or paste code here..." rows="1"></textarea>
+                <button id="send-button" aria-label="Send Message">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const chatWindow = document.getElementById("chat-window");
+        const userInput = document.getElementById("user-input");
+        const sendButton = document.getElementById("send-button");
+        const modeSelector = document.getElementById("mode-selector");
+        const langSelector = document.getElementById("language-selector");
+
+        // --- API KEY IS REMOVED FROM THE FRONTEND ---
+
+        // --- Add a message to the chat window ---
+        function addMessage(sender, messageContent, options = {}) {
+            const { isCode = false, mode = 'generate', isStructured = false, isDebugResult = false } = options;
+            const messageContainer = document.createElement("div");
+            messageContainer.classList.add("message", `${sender}-message`);
+
+            const typingIndicator = chatWindow.querySelector('.typing-indicator-container');
+            if (typingIndicator) chatWindow.removeChild(typingIndicator);
+
+            if (isDebugResult || isCode) {
+                let explanation = '';
+                let code = messageContent;
+
+                if (isDebugResult) {
+                    const parts = messageContent.split('|||');
+                    if (parts.length === 2) {
+                        explanation = parts[0].trim();
+                        code = parts[1].trim();
+                        const explanationText = document.createElement('p');
+                        explanationText.innerHTML = explanation;
+                        messageContainer.appendChild(explanationText);
+                    }
+                }
+                
+                const pre = document.createElement("pre");
+                const codeEl = document.createElement("code");
+                codeEl.textContent = code;
+                pre.appendChild(codeEl);
+                
+                const copyButton = document.createElement("button");
+                copyButton.className = "copy-btn";
+                copyButton.textContent = "Copy";
+                copyButton.onclick = () => handleCopyCode(copyButton, code);
+                pre.appendChild(copyButton);
+
+                messageContainer.appendChild(pre);
+                createActionButtons(messageContainer, code, mode);
+
+            } else {
+                const messageText = document.createElement("p");
+                if (isStructured) {
+                    messageContainer.classList.add("structured-container");
+                }
+                messageText.innerHTML = messageContent;
+                messageContainer.appendChild(messageText);
+            }
+
+            chatWindow.appendChild(messageContainer);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function createActionButtons(parent, code, mode = 'debug') {
+             const actionsContainer = document.createElement("div");
+            actionsContainer.className = "code-actions";
+
+            const explainButton = document.createElement("button");
+            explainButton.className = "action-btn";
+            explainButton.textContent = "Explain Code";
+            explainButton.onclick = () => handleExplainCode(code);
+            actionsContainer.appendChild(explainButton);
+
+            if (mode !== 'tests' && mode !== 'regex') {
+                const complexityButton = document.createElement("button");
+                complexityButton.className = "action-btn";
+                complexityButton.textContent = "Analyze Complexity";
+                complexityButton.onclick = () => handleAnalyzeComplexity(code);
+                actionsContainer.appendChild(complexityButton);
+            }
+            parent.appendChild(actionsContainer);
+        }
+        
+        // --- Show the typing indicator ---
+        function showTypingIndicator() {
+            const indicatorContainer = document.createElement("div");
+            indicatorContainer.classList.add("message", "bot-message", "typing-indicator-container");
+            const indicator = document.createElement("div");
+            indicator.classList.add("typing-indicator");
+            indicator.innerHTML = '<span></span><span></span><span></span>';
+            indicatorContainer.appendChild(indicator);
+            chatWindow.appendChild(indicatorContainer);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        // --- Call the SECURE BACKEND FUNCTION ---
+        async function getGeminiResponse(prompt, retries = 3, delay = 1000) {
+            // This URL points to your secure backend function, not directly to Google.
+            const apiUrl = '/api/gemini'; 
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt }) // Send the prompt to your backend
+                });
+
+                if (!response.ok) {
+                    if (response.status === 429 && retries > 0) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return getGeminiResponse(prompt, retries - 1, delay * 2);
+                    }
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (result.candidates && result.candidates[0].content.parts[0]) {
+                    let text = result.candidates[0].content.parts[0].text;
+                    text = text.replace(/^```(\w*\n)?|```$/g, "").trim();
+                    return text;
+                } else {
+                    return "I'm sorry, I couldn't generate a response.";
+                }
+            } catch (error) {
+                console.error("Error fetching from backend:", error);
+                if (retries > 0) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return getGeminiResponse(prompt, retries - 1, delay * 2);
+                }
+                return "An error occurred. Please check the console for details.";
+            }
+        }
+
+        // --- Main handler for sending a message ---
+        async function handleSendMessage() {
+            const userMessage = userInput.value.trim();
+            if (!userMessage) return;
+
+            const selectedLang = langSelector.querySelector('input[name="language"]:checked').value;
+            const selectedMode = modeSelector.querySelector('input[name="mode"]:checked').value;
+
+            addMessage("user", `[${selectedMode.toUpperCase()} in ${selectedLang}]:\n${userMessage}`);
+            userInput.value = "";
+            autoResizeTextarea();
+
+            showTypingIndicator();
+            
+            let prompt = '';
+            let options = { mode: selectedMode };
+
+            switch (selectedMode) {
+                case 'debug':
+                    prompt = `You are an expert code debugger. Analyze the following ${selectedLang} code. Use this exact format: "Error Explanation: [simple explanation including line number] ||| [full corrected code]". Do not add any other text.\n\nCode:\n${userMessage}`;
+                    options.isDebugResult = true;
+                    break;
+                case 'optimize':
+                    prompt = `You are an expert code optimizer. Analyze the following ${selectedLang} code. Use this exact format: "Optimization Explanation: [simple explanation] ||| [full optimized code]". Do not add any other text.\n\nCode:\n${userMessage}`;
+                    options.isDebugResult = true;
+                    break;
+                case 'generate':
+                default:
+                    prompt = `Generate a complete, runnable code solution in ${selectedLang} for: ${userMessage}. Only output the raw code with no comments.`;
+                    options.isCode = true;
+                    break;
+            }
+
+            const botResponse = await getGeminiResponse(prompt);
+            addMessage("bot", botResponse, options);
+        }
+
+        // --- Handle action button clicks ---
+        async function handleExplainCode(codeToExplain) {
+            const selectedLang = langSelector.querySelector('input[name="language"]:checked').value;
+            addMessage("user", `Explain this ${selectedLang} code for me.`);
+            showTypingIndicator();
+            const prompt = `Explain the following ${selectedLang} code. For each line, provide the code, then a '|||' separator, then a simple one-sentence explanation. Each line pair should be on a new line. Do not add any extra formatting or introductory text.\n\n${codeToExplain}`;
+            const rawExplanation = await getGeminiResponse(prompt);
+
+            let formattedExplanation = '';
+            const lines = rawExplanation.split('\n');
+            lines.forEach(line => {
+                const parts = line.split('|||');
+                if (parts.length === 2) {
+                    const codePart = parts[0].trim();
+                    const textPart = parts[1].trim();
+                    formattedExplanation += `<div class="structured-line"><code class="structured-title">${escapeHtml(codePart)}</code><p class="structured-text">${escapeHtml(textPart)}</p></div>`;
+                }
+            });
+
+            addMessage("bot", formattedExplanation, { isStructured: true });
+        }
+        
+        async function handleAnalyzeComplexity(codeToAnalyze) {
+            const selectedLang = langSelector.querySelector('input[name="language"]:checked').value;
+            addMessage("user", `Analyze the time and space complexity of this ${selectedLang} code.`);
+            showTypingIndicator();
+            const prompt = `Analyze the complexity of the following ${selectedLang} code. Use this exact format: First, "Time Complexity: O(notation) ||| Simple explanation". Then, on a new line, "Space Complexity: O(notation) ||| Simple explanation".\n\n${codeToAnalyze}`;
+            const rawAnalysis = await getGeminiResponse(prompt);
+            
+            let formattedAnalysis = '';
+            const lines = rawAnalysis.split('\n');
+            lines.forEach(line => {
+                const parts = line.split('|||');
+                if (parts.length === 2) {
+                    const titlePart = parts[0].trim();
+                    const textPart = parts[1].trim();
+                    formattedAnalysis += `<div class="structured-line"><strong class="structured-title">${escapeHtml(titlePart)}</strong><p class="structured-text">${escapeHtml(textPart)}</p></div>`;
+                }
+            });
+
+            addMessage("bot", formattedAnalysis, { isStructured: true });
+        }
+
+        // --- Handle Copy Code ---
+        function handleCopyCode(button, codeToCopy) {
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = codeToCopy;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+
+            button.textContent = 'Copied!';
+            setTimeout(() => {
+                button.textContent = 'Copy';
+            }, 2000);
+        }
+
+        // --- Utility function to escape HTML ---
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
+        // --- Auto-resize textarea ---
+        function autoResizeTextarea() {
+            userInput.style.height = 'auto';
+            userInput.style.height = userInput.scrollHeight + 'px';
+        }
+
+        // --- Event Listeners ---
+        sendButton.addEventListener("click", handleSendMessage);
+        userInput.addEventListener("input", autoResizeTextarea);
+        userInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                handleSendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
